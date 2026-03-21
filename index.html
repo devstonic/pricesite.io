@@ -106,6 +106,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
         }
         
         .tg-button.second {
@@ -141,6 +142,71 @@
             font-size: 20px;
         }
 
+        /* Блок с телефоном (кликабельный, копирование) */
+        .phone-block {
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(5px);
+            border-radius: 50px;
+            padding: 12px 18px;
+            margin: 0px 0 5px 0;
+            border: 1px solid rgba(255,255,255,0.3);
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-align: center;
+            transition: 0.2s;
+            cursor: pointer;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        .phone-block:active {
+            transform: scale(0.98);
+            background: rgba(0, 100, 100, 0.7);
+            border-color: rgba(255,215,0,0.8);
+        }
+        
+        .phone-block span:first-child {
+            font-size: 20px;
+        }
+        
+        .phone-number {
+            font-family: monospace;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        
+        /* уведомление о копировании */
+        .copy-toast {
+            position: fixed;
+            bottom: 30%;
+            left: 50%;
+            transform: translateX(-50%) translateY(30px);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 60px;
+            font-size: 15px;
+            font-weight: 500;
+            z-index: 999;
+            opacity: 0;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            border: 1px solid rgba(255,215,0,0.5);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            letter-spacing: 0.3px;
+        }
+        
+        .copy-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
         /* Напоминание про скидку */
         .coupon-note {
             text-align: center;
@@ -153,6 +219,15 @@
             border-radius: 30px;
             align-self: center;
             backdrop-filter: blur(3px);
+        }
+        
+        /* Адаптив для маленьких экранов */
+        @media (max-width: 480px) {
+            .master-name { font-size: 28px; }
+            .profession { font-size: 14px; letter-spacing: 2px; }
+            .tg-button { padding: 14px 16px; font-size: 16px; }
+            .phone-number { font-size: 16px; }
+            .copy-toast { white-space: nowrap; font-size: 13px; padding: 8px 18px; bottom: 35%; }
         }
     </style>
 </head>
@@ -188,10 +263,92 @@
             <span>📍</span> Район Тракторного завода, г. Спасск-Дальний
         </div>
         
+        <!-- ТЕЛЕФОН: кликабельный, при клике копируется номер + показываем уведомление -->
+        <div class="phone-block" id="phoneCopyBtn">
+            <span>📞</span> 
+            <span class="phone-number">8 999 059-41-70</span>
+            <span style="font-size: 14px; opacity: 0.7;">📋</span>
+        </div>
+        
         <!-- Напоминание про скидку -->
         <div class="coupon-note">
             🎟️ Скидка 10% по купону
         </div>
     </div>
+    
+    <!-- Всплывающее уведомление "Номер скопирован" -->
+    <div id="copyToast" class="copy-toast">✅ Номер скопирован</div>
+
+    <script>
+        (function() {
+            // Исходный номер: 89990594170 (чистый для копирования)
+            const phoneRaw = "89990594170";
+            // Форматированный для отображения: 8 999 059-41-70
+            // (он уже прописан в .phone-number, но при копировании берем чистую цифровую строку)
+            
+            const phoneBlock = document.getElementById('phoneCopyBtn');
+            const toast = document.getElementById('copyToast');
+            
+            // Функция показа уведомления
+            function showToast(message) {
+                if (!toast) return;
+                toast.textContent = message || "✅ Номер скопирован";
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    // Сброс текста через паузу, чтобы не мелькало
+                    setTimeout(() => {
+                        if (toast.textContent !== "✅ Номер скопирован") {
+                            toast.textContent = "✅ Номер скопирован";
+                        }
+                    }, 200);
+                }, 1800);
+            }
+            
+            // Копирование текста (современный метод + fallback для старых браузеров)
+            async function copyPhoneNumber() {
+                try {
+                    // Пробуем использовать современный Clipboard API
+                    await navigator.clipboard.writeText(phoneRaw);
+                    showToast("📞 Номер скопирован: 8 999 059-41-70");
+                    // дополнительный визуальный фидбек
+                    phoneBlock.style.transform = "scale(0.98)";
+                    setTimeout(() => { phoneBlock.style.transform = ""; }, 150);
+                } catch (err) {
+                    // fallback для старых браузеров или если доступ запрещён
+                    const textArea = document.createElement("textarea");
+                    textArea.value = phoneRaw;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    const success = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    if (success) {
+                        showToast("📞 Номер скопирован: 8 999 059-41-70");
+                        phoneBlock.style.transform = "scale(0.98)";
+                        setTimeout(() => { phoneBlock.style.transform = ""; }, 150);
+                    } else {
+                        showToast("⚠️ Не удалось скопировать, попробуйте вручную");
+                    }
+                }
+            }
+            
+            // Добавляем обработчик клика на блок телефона
+            if (phoneBlock) {
+                phoneBlock.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    copyPhoneNumber();
+                });
+                // Делаем интерактивным также для touch-устройств — hover/active эффекты в стилях уже есть
+                // Добавим дополнительно курсор pointer
+                phoneBlock.style.cursor = "pointer";
+            }
+            
+            // Дополнительно: чтобы пользователь мог также скопировать по долгому нажатию? не требуется,
+            // но добавим всплывающую подсказку при наведении на десктопе (title)
+            if (phoneBlock) {
+                phoneBlock.setAttribute('title', 'Нажмите, чтобы скопировать номер телефона');
+            }
+        })();
+    </script>
 </body>
 </html>
